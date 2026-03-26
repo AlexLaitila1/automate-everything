@@ -1,4 +1,7 @@
 {
+  "enabledPlugins": {
+    "everything-claude-code@everything-claude-code": true
+  },
   "extraKnownMarketplaces": {
     "everything-claude-code": {
       "source": {
@@ -6,8 +9,5 @@
         "repo": "affaan-m/everything-claude-code"
       }
     }
-  },
-  "enabledPlugins": {
-    "everything-claude-code@everything-claude-code": true
   }
 }
