@@ -1,0 +1,24 @@
+# 1. OS Generated Files (Crucial for Mac users!)
+.DS_Store
+.DS_Store?
+._*
+.Trash-*
+
+# 2. Environment Variables (NEVER UPLOAD THESE)
+.env
+.env.local
+.env.*.local
+
+# 3. Node.js / Frontend dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+
+# 4. Python dependencies
+__pycache__/
+*.py[cod]
+venv/
+env/
+.Python
