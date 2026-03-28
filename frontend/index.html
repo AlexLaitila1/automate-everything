@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaw — Blueprint Analyzer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>OpenClaw</h1>
+      <p class="subtitle">Drop a house blueprint PDF to calculate perimeter, wall area, and cladding materials.</p>
+    </header>
+
+    <main>
+      <!-- Drop zone -->
+      <div id="drop-zone" role="button" tabindex="0" aria-label="Upload PDF blueprint">
+        <div class="drop-icon">&#8659;</div>
+        <p class="drop-label">Drag &amp; drop your blueprint PDF here</p>
+        <p class="drop-sub">or <label class="browse-link" for="file-input">browse</label></p>
+        <input id="file-input" type="file" accept=".pdf,application/pdf" hidden />
+        <p id="file-name" class="file-name" hidden></p>
+      </div>
+
+      <!-- Options -->
+      <div class="options">
+        <label for="material-select">Cladding material</label>
+        <select id="material-select">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+
+      <!-- Action -->
+      <button id="analyze-btn" disabled>Analyze Blueprint</button>
+
+      <!-- Loading -->
+      <div id="loading" class="loading" hidden>
+        <div class="spinner"></div>
+        <p>Analyzing blueprint — this may take up to 30 seconds…</p>
+      </div>
+
+      <!-- Error -->
+      <div id="error-box" class="error-box" hidden></div>
+
+      <!-- Results -->
+      <section id="results" class="results" hidden>
+        <h2>Analysis Report</h2>
+        <pre id="report-text"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
