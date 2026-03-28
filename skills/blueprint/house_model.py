@@ -13,6 +13,8 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass, field
 
+from .models import WallFaceShape, WallShapeComponent
+
 
 @dataclass(frozen=True)
 class HouseModelWall:
@@ -57,6 +59,9 @@ class HouseModel:
     # Exterior wall height floor-to-eave (more reliable than storey_height_m for cladding)
     eave_level_m: float | None = None
 
+    # Wall face shape decomposition (from Julkisivu extraction)
+    wall_face_shapes: tuple[WallFaceShape, ...] = field(default_factory=tuple)
+
     # Common
     material_key: str = "fiber_cement"
     scale_descriptions: tuple[str, ...] = field(default_factory=tuple)
@@ -89,6 +94,21 @@ def from_dict(data: dict) -> HouseModel:
         (float(v[0]), float(v[1]))
         for v in data.get("footprint_vertices", [])
     )
+    wall_face_shapes = tuple(
+        WallFaceShape(
+            face=str(fs["face"]),
+            components=tuple(
+                WallShapeComponent(
+                    shape_type=str(c.get("shape_type", "rectangle")),
+                    width_m=float(c["width_m"]),
+                    height_m=float(c["height_m"]),
+                    height_right_m=float(c.get("height_right_m", 0.0)),
+                )
+                for c in fs.get("components", [])
+            ),
+        )
+        for fs in data.get("wall_face_shapes", [])
+    )
 
     return HouseModel(
         walls=walls,
@@ -104,6 +124,7 @@ def from_dict(data: dict) -> HouseModel:
         roof_pitch_deg=data.get("roof_pitch_deg"),
         total_height_m=data.get("total_height_m"),
         eave_level_m=data.get("eave_level_m"),
+        wall_face_shapes=wall_face_shapes,
         material_key=data.get("material_key", "fiber_cement"),
         scale_descriptions=scale_descriptions,
     )
@@ -224,6 +245,27 @@ class HouseModelBuilder:
             for o in raw_openings
         )
 
+        # ── Wall face shapes from Julkisivu ───────────────────────────────────
+        wall_shapes_raw = ju.get("wall_shapes", [])
+        wall_face_shapes_list: list[WallFaceShape] = []
+        if wall_shapes_raw:
+            face_label_for_shapes = str(ju.get("face_label", "front"))
+            components = tuple(
+                WallShapeComponent(
+                    shape_type=str(s.get("shape_type", "rectangle")),
+                    width_m=float(s["width_m"]),
+                    height_m=float(s["height_m"]),
+                    height_right_m=float(s.get("height_right_m", 0.0)),
+                )
+                for s in wall_shapes_raw
+                if float(s.get("width_m", 0)) > 0 and float(s.get("height_m", 0)) >= 0
+            )
+            if components:
+                wall_face_shapes_list.append(
+                    WallFaceShape(face=face_label_for_shapes, components=components)
+                )
+        wall_face_shapes: tuple[WallFaceShape, ...] = tuple(wall_face_shapes_list)
+
         # ── Footprint vertices from Pohjakuva ─────────────────────────────
         raw_vertices = po.get("footprint_vertices", [])
         footprint_vertices: tuple[tuple[float, float], ...]
@@ -256,6 +298,7 @@ class HouseModelBuilder:
             roof_pitch_deg=float(le["roof_pitch_deg"]) if "roof_pitch_deg" in le else None,
             total_height_m=float(le["total_height_m"]) if "total_height_m" in le else None,
             eave_level_m=eave_level_m,
+            wall_face_shapes=wall_face_shapes,
             material_key=material_key,
             scale_descriptions=scale_descriptions,
         )

@@ -16,11 +16,15 @@ _MAX_RETRIES = 2
 
 def _parse_response(raw: str) -> dict:
     data = extract_json(raw)
+    num_storeys = data.get("num_storeys")
+    if num_storeys is None:
+        raise ValueError("num_storeys missing from Leikkaus extraction — cannot determine building height.")
+
     result: dict = {
         "storey_height_m": float(data["storey_height_m"]),
         "total_height_m": float(data["total_height_m"]),
         "roof_pitch_deg": float(data.get("roof_pitch_deg", 0.0)),
-        "num_storeys": int(data.get("num_storeys", 1)),
+        "num_storeys": int(num_storeys),
         "scale_description": str(data.get("scale_description", "unknown")),
         "_source": "leikkaus",
     }

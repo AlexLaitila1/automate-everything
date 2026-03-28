@@ -63,6 +63,26 @@ def _format_report(result: SimulationResult, model: HouseModel) -> str:
     else:
         lines.append("    None detected.")
 
+    # Wall shape breakdown
+    if model.wall_face_shapes:
+        from .models import shape_component_area, wall_face_area as _wfa
+        for fs in model.wall_face_shapes:
+            face_total = _wfa(fs)
+            lines += ["", f"  Wall face shapes (from Julkisivu — {fs.face}):"]
+            for comp in fs.components:
+                comp_area = shape_component_area(comp)
+                if comp.shape_type == "trapezoid":
+                    lines.append(
+                        f"    {comp.shape_type:<12} {comp.width_m} m × "
+                        f"({comp.height_m}–{comp.height_right_m}) m  = {round(comp_area, 3)} m²"
+                    )
+                else:
+                    lines.append(
+                        f"    {comp.shape_type:<12} {comp.width_m} m × {comp.height_m} m"
+                        f"  = {round(comp_area, 3)} m²"
+                    )
+            lines.append(f"    {'Total face area:':<22} {round(face_total, 3)} m²")
+
     # ── Key results — same format as reference ────────────────────────────────
     lines += [
         "",

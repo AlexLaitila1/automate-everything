@@ -65,7 +65,7 @@ async def extract_pohjakuva(
     for attempt in range(1, _MAX_RETRIES + 1):
         response = client.messages.create(
             model=_MODEL,
-            max_tokens=1024,
+            max_tokens=4096,
             system=EXTRACT_POHJAKUVA_SYSTEM_PROMPT,
             messages=[
                 {

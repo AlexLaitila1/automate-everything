@@ -26,9 +26,13 @@ def _parse_response(text: str) -> BlueprintDimensions:
         for o in data.get("openings", [])
     )
 
+    wall_height_m = data.get("wall_height_m")
+    if wall_height_m is None:
+        raise ValueError("wall_height_m missing from extraction — cannot proceed without actual height.")
+
     return BlueprintDimensions(
         wall_segments=segments,
-        wall_height_m=float(data.get("wall_height_m", 2.7)),
+        wall_height_m=float(wall_height_m),
         scale_description=str(data.get("scale_description", "unknown")),
         openings=openings,
     )

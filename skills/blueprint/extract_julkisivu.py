@@ -28,10 +28,22 @@ def _parse_response(raw: str) -> dict:
         for o in data.get("openings", [])
     ]
 
+    wall_shapes = []
+    for s in data.get("wall_shapes", []):
+        shape: dict = {
+            "shape_type": str(s.get("shape_type", "rectangle")),
+            "width_m": float(s["width_m"]),
+            "height_m": float(s["height_m"]),
+        }
+        if "height_right_m" in s:
+            shape["height_right_m"] = float(s["height_right_m"])
+        wall_shapes.append(shape)
+
     return {
         "face_label": face_label,
         "facade_width_m": float(data["facade_width_m"]),
         "wall_height_m": float(data["wall_height_m"]),
+        "wall_shapes": wall_shapes,
         "scale_description": str(data.get("scale_description", "unknown")),
         "openings": openings,
         "_source": "julkisivu",
@@ -49,7 +61,7 @@ async def extract_julkisivu(
     for attempt in range(1, _MAX_RETRIES + 1):
         response = client.messages.create(
             model=_MODEL,
-            max_tokens=1024,
+            max_tokens=2048,
             system=EXTRACT_JULKISIVU_SYSTEM_PROMPT,
             messages=[
                 {

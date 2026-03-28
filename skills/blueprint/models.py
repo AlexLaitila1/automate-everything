@@ -159,3 +159,36 @@ class SimulationResult:
     # building_3d is from the legacy pipeline; house_model is from the new pipeline.
     building_3d: Building3D | None = None
     house_model: object | None = None  # HouseModel — typed as object to avoid circular import
+
+
+# ── Wall shape models ─────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class WallShapeComponent:
+    """One geometric shape composing part of a wall face profile."""
+    shape_type: str       # "rectangle" | "triangle" | "trapezoid"
+    width_m: float
+    height_m: float       # rectangle/triangle: height; trapezoid: left-side height
+    height_right_m: float = 0.0  # trapezoid only: right-side height
+
+
+@dataclass(frozen=True)
+class WallFaceShape:
+    """Shape decomposition of one building facade."""
+    face: str                              # "front" | "back" | "left" | "right"
+    components: tuple[WallShapeComponent, ...]
+
+
+def shape_component_area(comp: WallShapeComponent) -> float:
+    """Calculate area of a single wall shape component."""
+    if comp.shape_type == "triangle":
+        return 0.5 * comp.width_m * comp.height_m
+    if comp.shape_type == "trapezoid":
+        return 0.5 * (comp.height_m + comp.height_right_m) * comp.width_m
+    # "rectangle" and unknown types
+    return comp.width_m * comp.height_m
+
+
+def wall_face_area(face_shape: WallFaceShape) -> float:
+    """Calculate total gross area of a wall face from its shape components."""
+    return sum(shape_component_area(c) for c in face_shape.components)
