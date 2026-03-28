@@ -86,3 +86,73 @@ class MultiPdfReport:
     analyses: tuple[BlueprintAnalysis, ...]
     combined_area: CombinedWallArea
     combined_cladding: CladdingEstimate
+
+
+# ── 3D Simulation models ──────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class FootprintWall:
+    """One exterior wall segment from the floor plan."""
+    label: str         # e.g. "north", "south", "east", "west", "north-west"
+    length_m: float
+
+
+@dataclass(frozen=True)
+class PohjakuvaData:
+    """Data extracted from Pohjakuva (floor plan / top-down view)."""
+    walls: tuple[FootprintWall, ...]
+    width_m: float             # bounding-box width (x-axis)
+    depth_m: float             # bounding-box depth (y-axis)
+    shape: str                 # "rectangular" | "L-shaped" | "T-shaped" | "irregular"
+    scale_description: str
+    openings: tuple[Opening, ...]   # exterior doors/windows visible from above
+
+
+@dataclass(frozen=True)
+class FaceOpening:
+    """A window or door on a specific building face (from elevation)."""
+    face: str          # "front" | "back" | "left" | "right"
+    label: str         # "window" | "door"
+    width_m: float
+    height_m: float
+
+
+@dataclass(frozen=True)
+class JulkisivuData:
+    """Data extracted from Julkisivu (elevation / facade view)."""
+    face_label: str        # which facade: "front" | "back" | "left" | "right"
+    facade_width_m: float  # full width of the facade
+    wall_height_m: float   # floor-to-eave height
+    scale_description: str
+    openings: tuple[FaceOpening, ...]
+
+
+@dataclass(frozen=True)
+class LeikkausData:
+    """Data extracted from Leikkaus (cross-section / sectional cut)."""
+    storey_height_m: float    # floor-to-ceiling height of one storey
+    total_height_m: float     # ground to roof peak
+    roof_pitch_deg: float     # 0 = flat roof
+    num_storeys: int
+    scale_description: str
+
+
+@dataclass(frozen=True)
+class Building3D:
+    """Internal 3D building model assembled from all three blueprint types."""
+    pohjakuva: PohjakuvaData
+    julkisivu: JulkisivuData
+    leikkaus: LeikkausData
+    material_key: str
+
+
+@dataclass(frozen=True)
+class SimulationResult:
+    """Final outputs derived from the 3D building model."""
+    perimeter_m: float
+    wall_height_m: float
+    gross_wall_area_m2: float
+    opening_deductions_m2: float
+    net_wall_area_m2: float
+    cladding: CladdingEstimate
+    building_3d: Building3D

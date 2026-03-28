@@ -1,14 +1,14 @@
 "use strict";
 
-const SLOTS = [0, 1, 2];
-const selectedFiles = [null, null, null];
+const SLOTS = ["pohjakuva", "julkisivu", "leikkaus"];
+const selectedFiles = { pohjakuva: null, julkisivu: null, leikkaus: null };
 
-const analyzeBtn   = document.getElementById("analyze-btn");
-const materialSel  = document.getElementById("material-select");
-const loadingEl    = document.getElementById("loading");
-const errorBox     = document.getElementById("error-box");
-const resultsEl    = document.getElementById("results");
-const reportText   = document.getElementById("report-text");
+const analyzeBtn  = document.getElementById("analyze-btn");
+const materialSel = document.getElementById("material-select");
+const loadingEl   = document.getElementById("loading");
+const errorBox    = document.getElementById("error-box");
+const resultsEl   = document.getElementById("results");
+const reportText  = document.getElementById("report-text");
 
 // ── Material dropdown ────────────────────────────────────────────────────────
 
@@ -29,26 +29,29 @@ async function loadMaterials() {
 function setFile(slot, file) {
   if (!file) return;
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    showError(`PDF ${slot + 1}: please upload a PDF file.`);
+    showError(`${slot}: please upload a PDF file.`);
     return;
   }
   selectedFiles[slot] = file;
+
   const nameEl = document.getElementById(`name-${slot}`);
   nameEl.textContent = file.name;
   nameEl.hidden = false;
   document.getElementById(`card-${slot}`).classList.add("has-file");
+
   updateAnalyzeButton();
   hideError();
   resultsEl.hidden = true;
 }
 
 function updateAnalyzeButton() {
-  analyzeBtn.disabled = selectedFiles[0] === null;
+  const allPresent = SLOTS.every(s => selectedFiles[s] !== null);
+  analyzeBtn.disabled = !allPresent;
 }
 
 // Wire up each slot
 SLOTS.forEach(slot => {
-  const dropZone = document.getElementById(`drop-${slot}`);
+  const dropZone  = document.getElementById(`drop-${slot}`);
   const fileInput = document.getElementById(`file-${slot}`);
 
   dropZone.addEventListener("dragover", e => {
@@ -61,7 +64,11 @@ SLOTS.forEach(slot => {
     dropZone.classList.remove("drag-over");
     setFile(slot, e.dataTransfer.files[0]);
   });
-  dropZone.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("click", e => {
+    // Don't double-trigger when the click came from the browse label
+    if (e.target.closest("label")) return;
+    fileInput.click();
+  });
   dropZone.addEventListener("keydown", e => {
     if (e.key === "Enter" || e.key === " ") fileInput.click();
   });
@@ -71,7 +78,7 @@ SLOTS.forEach(slot => {
 // ── Analysis ─────────────────────────────────────────────────────────────────
 
 analyzeBtn.addEventListener("click", async () => {
-  if (!selectedFiles[0]) return;
+  if (!SLOTS.every(s => selectedFiles[s])) return;
 
   setLoading(true);
   hideError();
@@ -79,23 +86,23 @@ analyzeBtn.addEventListener("click", async () => {
 
   const form = new FormData();
   form.append("material", materialSel.value);
-
-  if (selectedFiles[0]) form.append("file1", selectedFiles[0]);
-  if (selectedFiles[1]) form.append("file2", selectedFiles[1]);
-  if (selectedFiles[2]) form.append("file3", selectedFiles[2]);
-
-  SLOTS.forEach(slot => {
-    const typeVal = document.getElementById(`type-${slot}`).value;
-    form.append(`type${slot + 1}`, typeVal);
-  });
+  form.append("pohjakuva", selectedFiles["pohjakuva"]);
+  form.append("julkisivu", selectedFiles["julkisivu"]);
+  form.append("leikkaus",  selectedFiles["leikkaus"]);
 
   try {
-    const res  = await fetch("/api/analyze-multi", { method: "POST", body: form });
+    const res  = await fetch("/api/analyze-3d", { method: "POST", body: form });
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      showError(data.detail || data.error || "Analysis failed. Please try again.");
+      const msg = data.detail || data.error || "Analysis failed. Please try again.";
+      showError(msg);
+      // Also show the error text in the report area so it's clearly visible
+      reportText.textContent = msg;
+      document.querySelector("#results h2").textContent = "Analysis Error";
+      resultsEl.hidden = false;
     } else {
+      document.querySelector("#results h2").textContent = "3D Simulation Report";
       reportText.textContent = data.report;
       resultsEl.hidden = false;
     }
@@ -109,8 +116,8 @@ analyzeBtn.addEventListener("click", async () => {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function setLoading(on) {
-  loadingEl.hidden     = !on;
-  analyzeBtn.disabled  = on;
+  loadingEl.hidden    = !on;
+  analyzeBtn.disabled = on;
 }
 
 function showError(msg) {

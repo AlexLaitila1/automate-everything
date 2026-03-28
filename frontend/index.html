@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,70 +10,52 @@
   <div class="container">
     <header>
       <h1>OpenClaw</h1>
-      <p class="subtitle">Drop up to 3 blueprint PDFs — floor plans, elevations, or a mix. The system classifies each drawing and combines the results.</p>
+      <p class="subtitle">
+        Drop your three Finnish blueprint PDFs — Pohjakuva, Julkisivu, and Leikkaus.
+        The system builds a 3D model and calculates perimeter, wall area, and cladding.
+      </p>
     </header>
 
     <main>
-      <!-- Three drop zones -->
+      <!-- Three labeled drop zones -->
       <div class="drop-grid">
 
-        <div class="drop-card" id="card-0">
-          <span class="badge required">Required</span>
-          <div class="drop-zone" id="drop-0" role="button" tabindex="0" aria-label="Upload PDF 1">
+        <div class="drop-card" id="card-pohjakuva">
+          <span class="badge required">Pohjakuva</span>
+          <div class="drop-zone" id="drop-pohjakuva" role="button" tabindex="0"
+               aria-label="Upload Pohjakuva (floor plan)">
             <div class="drop-icon">&#8659;</div>
-            <p class="drop-label">PDF 1</p>
-            <p class="drop-sub">Drag &amp; drop or <label class="browse-link" for="file-0">browse</label></p>
-            <input id="file-0" type="file" accept=".pdf,application/pdf" hidden />
-            <p class="file-name" id="name-0" hidden></p>
-          </div>
-          <div class="type-row">
-            <label for="type-0">Drawing type</label>
-            <select id="type-0">
-              <option value="">Auto-detect</option>
-              <option value="floor_plan">Floor Plan</option>
-              <option value="elevation">Elevation</option>
-              <option value="section">Section</option>
-            </select>
+            <p class="drop-label">Floor Plan</p>
+            <p class="drop-sub">Top-down view</p>
+            <p class="drop-sub">Drag &amp; drop or <span class="browse-link">browse</span></p>
+            <input id="file-pohjakuva" type="file" accept=".pdf,application/pdf" hidden />
+            <p class="file-name" id="name-pohjakuva" hidden></p>
           </div>
         </div>
 
-        <div class="drop-card" id="card-1">
-          <span class="badge optional">Optional</span>
-          <div class="drop-zone" id="drop-1" role="button" tabindex="0" aria-label="Upload PDF 2">
+        <div class="drop-card" id="card-julkisivu">
+          <span class="badge required">Julkisivu</span>
+          <div class="drop-zone" id="drop-julkisivu" role="button" tabindex="0"
+               aria-label="Upload Julkisivu (elevation)">
             <div class="drop-icon">&#8659;</div>
-            <p class="drop-label">PDF 2</p>
-            <p class="drop-sub">Drag &amp; drop or <label class="browse-link" for="file-1">browse</label></p>
-            <input id="file-1" type="file" accept=".pdf,application/pdf" hidden />
-            <p class="file-name" id="name-1" hidden></p>
-          </div>
-          <div class="type-row">
-            <label for="type-1">Drawing type</label>
-            <select id="type-1">
-              <option value="">Auto-detect</option>
-              <option value="floor_plan">Floor Plan</option>
-              <option value="elevation">Elevation</option>
-              <option value="section">Section</option>
-            </select>
+            <p class="drop-label">Elevation</p>
+            <p class="drop-sub">Side-on facade view</p>
+            <p class="drop-sub">Drag &amp; drop or <span class="browse-link">browse</span></p>
+            <input id="file-julkisivu" type="file" accept=".pdf,application/pdf" hidden />
+            <p class="file-name" id="name-julkisivu" hidden></p>
           </div>
         </div>
 
-        <div class="drop-card" id="card-2">
-          <span class="badge optional">Optional</span>
-          <div class="drop-zone" id="drop-2" role="button" tabindex="0" aria-label="Upload PDF 3">
+        <div class="drop-card" id="card-leikkaus">
+          <span class="badge required">Leikkaus</span>
+          <div class="drop-zone" id="drop-leikkaus" role="button" tabindex="0"
+               aria-label="Upload Leikkaus (cross-section)">
             <div class="drop-icon">&#8659;</div>
-            <p class="drop-label">PDF 3</p>
-            <p class="drop-sub">Drag &amp; drop or <label class="browse-link" for="file-2">browse</label></p>
-            <input id="file-2" type="file" accept=".pdf,application/pdf" hidden />
-            <p class="file-name" id="name-2" hidden></p>
-          </div>
-          <div class="type-row">
-            <label for="type-2">Drawing type</label>
-            <select id="type-2">
-              <option value="">Auto-detect</option>
-              <option value="floor_plan">Floor Plan</option>
-              <option value="elevation">Elevation</option>
-              <option value="section">Section</option>
-            </select>
+            <p class="drop-label">Cross-Section</p>
+            <p class="drop-sub">Vertical sectional cut</p>
+            <p class="drop-sub">Drag &amp; drop or <span class="browse-link">browse</span></p>
+            <input id="file-leikkaus" type="file" accept=".pdf,application/pdf" hidden />
+            <p class="file-name" id="name-leikkaus" hidden></p>
           </div>
         </div>
 
@@ -88,12 +70,12 @@
       </div>
 
       <!-- Action -->
-      <button id="analyze-btn" disabled>Analyze Blueprints</button>
+      <button id="analyze-btn" disabled>Run 3D Simulation</button>
 
       <!-- Loading -->
       <div id="loading" class="loading" hidden>
         <div class="spinner"></div>
-        <p>Analyzing blueprints — this may take up to 60 seconds…</p>
+        <p>Simulating building from blueprints — this may take up to 60 seconds…</p>
       </div>
 
       <!-- Error -->
@@ -101,7 +83,7 @@
 
       <!-- Results -->
       <section id="results" class="results" hidden>
-        <h2>Combined Analysis Report</h2>
+        <h2>3D Simulation Report</h2>
         <pre id="report-text"></pre>
       </section>
     </main>

@@ -75,6 +75,9 @@ header h1 {
 .badge.required { background: #0070f3; color: #fff; }
 .badge.optional  { background: #e0e0e0; color: #555; }
 
+/* Finnish blueprint type badges */
+.badge[class*="required"] { background: #0070f3; color: #fff; }
+
 /* Drop zone inside card */
 .drop-zone {
   background: #fafafa;

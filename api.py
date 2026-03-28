@@ -26,6 +26,7 @@ from pdf_converter import pdf_to_base64_png
 from skills.blueprint.materials import MATERIALS
 from skills.blueprint.multi_orchestrator import analyze_multi_blueprint
 from skills.blueprint.orchestrator import analyze_blueprint
+from skills.blueprint.simulation_orchestrator import analyze_3d_blueprints
 
 _VALID_DRAWING_TYPES = {"", "floor_plan", "elevation", "section"}
 
@@ -162,3 +163,54 @@ async def analyze_multi(
 
     log.info("Multi analysis complete (%d chars)", len(report))
     return {"success": True, "report": report, "pdf_count": len(inputs)}
+
+
+@app.post("/api/analyze-3d")
+async def analyze_3d(
+    pohjakuva: UploadFile = File(...),
+    julkisivu: UploadFile = File(...),
+    leikkaus: UploadFile = File(...),
+    material: str = Form("fiber_cement"),
+) -> dict:
+    """
+    Accept exactly three Finnish blueprint PDFs and run the 3D simulation pipeline.
+
+    pohjakuva — floor plan (top-down view)
+    julkisivu — elevation / facade (side-on view)
+    leikkaus  — cross-section (vertical cut)
+    """
+    if material not in MATERIALS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown material '{material}'. Valid: {list(MATERIALS.keys())}",
+        )
+
+    async def _read_pdf(upload: UploadFile, label: str) -> tuple[str, str]:
+        pdf_bytes = await upload.read()
+        log.info("Received %s: %s (%d bytes)", label, upload.filename, len(pdf_bytes))
+        try:
+            return pdf_to_base64_png(pdf_bytes)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"{label}: {exc}")
+
+    pohjakuva_b64, pohjakuva_media = await _read_pdf(pohjakuva, "Pohjakuva")
+    julkisivu_b64, julkisivu_media = await _read_pdf(julkisivu, "Julkisivu")
+    leikkaus_b64, leikkaus_media = await _read_pdf(leikkaus, "Leikkaus")
+
+    log.info("Running 3D simulation with material=%s", material)
+    report = await analyze_3d_blueprints(
+        pohjakuva_b64=pohjakuva_b64,
+        pohjakuva_media=pohjakuva_media,
+        julkisivu_b64=julkisivu_b64,
+        julkisivu_media=julkisivu_media,
+        leikkaus_b64=leikkaus_b64,
+        leikkaus_media=leikkaus_media,
+        material_key=material,
+    )
+
+    if report.lower().startswith("analysis failed"):
+        log.warning("3D simulation error: %s", report[:120])
+        return {"success": False, "error": report}
+
+    log.info("3D simulation complete (%d chars)", len(report))
+    return {"success": True, "report": report}
