@@ -10,20 +10,76 @@
   <div class="container">
     <header>
       <h1>OpenClaw</h1>
-      <p class="subtitle">Drop a house blueprint PDF to calculate perimeter, wall area, and cladding materials.</p>
+      <p class="subtitle">Drop up to 3 blueprint PDFs — floor plans, elevations, or a mix. The system classifies each drawing and combines the results.</p>
     </header>
 
     <main>
-      <!-- Drop zone -->
-      <div id="drop-zone" role="button" tabindex="0" aria-label="Upload PDF blueprint">
-        <div class="drop-icon">&#8659;</div>
-        <p class="drop-label">Drag &amp; drop your blueprint PDF here</p>
-        <p class="drop-sub">or <label class="browse-link" for="file-input">browse</label></p>
-        <input id="file-input" type="file" accept=".pdf,application/pdf" hidden />
-        <p id="file-name" class="file-name" hidden></p>
-      </div>
+      <!-- Three drop zones -->
+      <div class="drop-grid">
 
-      <!-- Options -->
+        <div class="drop-card" id="card-0">
+          <span class="badge required">Required</span>
+          <div class="drop-zone" id="drop-0" role="button" tabindex="0" aria-label="Upload PDF 1">
+            <div class="drop-icon">&#8659;</div>
+            <p class="drop-label">PDF 1</p>
+            <p class="drop-sub">Drag &amp; drop or <label class="browse-link" for="file-0">browse</label></p>
+            <input id="file-0" type="file" accept=".pdf,application/pdf" hidden />
+            <p class="file-name" id="name-0" hidden></p>
+          </div>
+          <div class="type-row">
+            <label for="type-0">Drawing type</label>
+            <select id="type-0">
+              <option value="">Auto-detect</option>
+              <option value="floor_plan">Floor Plan</option>
+              <option value="elevation">Elevation</option>
+              <option value="section">Section</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="drop-card" id="card-1">
+          <span class="badge optional">Optional</span>
+          <div class="drop-zone" id="drop-1" role="button" tabindex="0" aria-label="Upload PDF 2">
+            <div class="drop-icon">&#8659;</div>
+            <p class="drop-label">PDF 2</p>
+            <p class="drop-sub">Drag &amp; drop or <label class="browse-link" for="file-1">browse</label></p>
+            <input id="file-1" type="file" accept=".pdf,application/pdf" hidden />
+            <p class="file-name" id="name-1" hidden></p>
+          </div>
+          <div class="type-row">
+            <label for="type-1">Drawing type</label>
+            <select id="type-1">
+              <option value="">Auto-detect</option>
+              <option value="floor_plan">Floor Plan</option>
+              <option value="elevation">Elevation</option>
+              <option value="section">Section</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="drop-card" id="card-2">
+          <span class="badge optional">Optional</span>
+          <div class="drop-zone" id="drop-2" role="button" tabindex="0" aria-label="Upload PDF 3">
+            <div class="drop-icon">&#8659;</div>
+            <p class="drop-label">PDF 3</p>
+            <p class="drop-sub">Drag &amp; drop or <label class="browse-link" for="file-2">browse</label></p>
+            <input id="file-2" type="file" accept=".pdf,application/pdf" hidden />
+            <p class="file-name" id="name-2" hidden></p>
+          </div>
+          <div class="type-row">
+            <label for="type-2">Drawing type</label>
+            <select id="type-2">
+              <option value="">Auto-detect</option>
+              <option value="floor_plan">Floor Plan</option>
+              <option value="elevation">Elevation</option>
+              <option value="section">Section</option>
+            </select>
+          </div>
+        </div>
+
+      </div><!-- .drop-grid -->
+
+      <!-- Material -->
       <div class="options">
         <label for="material-select">Cladding material</label>
         <select id="material-select">
@@ -32,12 +88,12 @@
       </div>
 
       <!-- Action -->
-      <button id="analyze-btn" disabled>Analyze Blueprint</button>
+      <button id="analyze-btn" disabled>Analyze Blueprints</button>
 
       <!-- Loading -->
       <div id="loading" class="loading" hidden>
         <div class="spinner"></div>
-        <p>Analyzing blueprint — this may take up to 30 seconds…</p>
+        <p>Analyzing blueprints — this may take up to 60 seconds…</p>
       </div>
 
       <!-- Error -->
@@ -45,7 +101,7 @@
 
       <!-- Results -->
       <section id="results" class="results" hidden>
-        <h2>Analysis Report</h2>
+        <h2>Combined Analysis Report</h2>
         <pre id="report-text"></pre>
       </section>
     </main>

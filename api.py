@@ -24,7 +24,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pdf_converter import pdf_to_base64_png
 from skills.blueprint.materials import MATERIALS
+from skills.blueprint.multi_orchestrator import analyze_multi_blueprint
 from skills.blueprint.orchestrator import analyze_blueprint
+
+_VALID_DRAWING_TYPES = {"", "floor_plan", "elevation", "section"}
 
 load_dotenv()
 
@@ -99,3 +102,63 @@ async def analyze(
 
     log.info("Analysis complete (%d chars)", len(report))
     return {"success": True, "report": report}
+
+
+@app.post("/api/analyze-multi")
+async def analyze_multi(
+    file1: UploadFile = File(...),
+    file2: UploadFile = File(None),
+    file3: UploadFile = File(None),
+    material: str = Form("fiber_cement"),
+    type1: str = Form(""),
+    type2: str = Form(""),
+    type3: str = Form(""),
+) -> dict:
+    # Validate material
+    if material not in MATERIALS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown material '{material}'. Valid: {list(MATERIALS.keys())}",
+        )
+
+    # Validate drawing type overrides
+    for label, dtype in (("type1", type1), ("type2", type2), ("type3", type3)):
+        if dtype not in _VALID_DRAWING_TYPES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid {label} '{dtype}'. Valid: floor_plan, elevation, section, or empty.",
+            )
+
+    # Collect uploaded files
+    uploads = [(file1, type1, "PDF 1")]
+    if file2 and file2.filename:
+        uploads.append((file2, type2, "PDF 2"))
+    if file3 and file3.filename:
+        uploads.append((file3, type3, "PDF 3"))
+
+    # Convert each PDF to image
+    inputs: list[dict] = []
+    for upload_file, drawing_type, label in uploads:
+        pdf_bytes = await upload_file.read()
+        log.info("Received %s: %s (%d bytes)", label, upload_file.filename, len(pdf_bytes))
+        try:
+            image_base64, media_type = pdf_to_base64_png(pdf_bytes)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"{label}: {exc}")
+        inputs.append({
+            "image_base64": image_base64,
+            "media_type": media_type,
+            "material": material,
+            "drawing_type_override": drawing_type,
+            "source_label": label,
+        })
+
+    log.info("Running multi-PDF analysis: %d file(s), material=%s", len(inputs), material)
+    report = await analyze_multi_blueprint(inputs)
+
+    if report.lower().startswith(("error", "analysis failed")):
+        log.warning("Multi pipeline error: %s", report[:120])
+        return {"success": False, "error": report, "pdf_count": len(inputs)}
+
+    log.info("Multi analysis complete (%d chars)", len(report))
+    return {"success": True, "report": report, "pdf_count": len(inputs)}

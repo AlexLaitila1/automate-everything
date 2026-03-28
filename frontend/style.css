@@ -30,41 +30,88 @@ header h1 {
   font-size: 0.95rem;
 }
 
-/* Drop zone */
-#drop-zone {
+/* Drop grid — three cards side by side */
+.drop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .drop-grid { grid-template-columns: 1fr; }
+}
+
+/* Individual drop card */
+.drop-card {
+  position: relative;
   background: #fff;
-  border: 2px dashed #aaa;
+  border: 1px solid #e0e0e0;
   border-radius: 12px;
-  padding: 3rem 2rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.2s;
+}
+
+.drop-card.has-file {
+  border-color: #0070f3;
+}
+
+/* Badge */
+.badge {
+  position: absolute;
+  top: -10px;
+  left: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.badge.required { background: #0070f3; color: #fff; }
+.badge.optional  { background: #e0e0e0; color: #555; }
+
+/* Drop zone inside card */
+.drop-zone {
+  background: #fafafa;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
   outline: none;
+  flex: 1;
 }
 
-#drop-zone:hover,
-#drop-zone:focus,
-#drop-zone.drag-over {
+.drop-zone:hover,
+.drop-zone:focus,
+.drop-zone.drag-over {
   border-color: #0070f3;
   background: #f0f7ff;
 }
 
 .drop-icon {
-  font-size: 3rem;
-  color: #aaa;
-  margin-bottom: 0.75rem;
+  font-size: 2rem;
+  color: #bbb;
+  margin-bottom: 0.5rem;
   line-height: 1;
 }
 
 .drop-label {
-  font-size: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #333;
 }
 
 .drop-sub {
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-  color: #777;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: #888;
 }
 
 .browse-link {
@@ -74,10 +121,33 @@ header h1 {
 }
 
 .file-name {
-  margin-top: 1rem;
-  font-size: 0.875rem;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
   color: #0070f3;
   font-weight: 500;
+  word-break: break-all;
+}
+
+/* Drawing type row inside card */
+.type-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.type-row label {
+  font-size: 0.75rem;
+  color: #666;
+  white-space: nowrap;
+}
+
+.type-row select {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: #fff;
 }
 
 /* Options */
