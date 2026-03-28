@@ -198,7 +198,7 @@ async def analyze_3d(
     leikkaus_b64, leikkaus_media = await _read_pdf(leikkaus, "Leikkaus")
 
     log.info("Running 3D simulation with material=%s", material)
-    report = await analyze_3d_blueprints(
+    report, house_model = await analyze_3d_blueprints(
         pohjakuva_b64=pohjakuva_b64,
         pohjakuva_media=pohjakuva_media,
         julkisivu_b64=julkisivu_b64,
@@ -213,4 +213,4 @@ async def analyze_3d(
         return {"success": False, "error": report}
 
     log.info("3D simulation complete (%d chars)", len(report))
-    return {"success": True, "report": report}
+    return {"success": True, "report": report, "house_model": house_model}

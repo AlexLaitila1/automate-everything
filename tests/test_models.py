@@ -22,7 +22,7 @@ def test_blueprint_dimensions_is_frozen(simple_house):
 
 
 def test_materials_dict_has_expected_keys():
-    expected = {"vinyl_siding", "brick", "fiber_cement", "wood", "stucco"}
+    expected = {"vinyl_siding", "brick", "fiber_cement", "wood", "stucco", "planks"}
     assert expected == set(MATERIALS.keys())
 
 
@@ -33,7 +33,8 @@ def test_all_materials_have_positive_coverage():
 
 def test_all_materials_have_valid_waste_factor():
     for key, mat in MATERIALS.items():
-        assert 0 < mat.waste_factor_pct < 100, f"{key} waste factor must be 0-100"
+        # planks intentionally uses 0% waste (ordered for gross area, cut on site)
+        assert 0 <= mat.waste_factor_pct < 100, f"{key} waste factor must be 0-100"
 
 
 def test_all_materials_have_positive_cost():

@@ -252,3 +252,41 @@ header h1 {
   padding: 1rem;
   overflow-x: auto;
 }
+
+/* House Model JSON section */
+.model-section {
+  margin-top: 1.25rem;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+}
+
+.toggle-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  color: #555;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.toggle-btn:hover {
+  border-color: #0070f3;
+  color: #0070f3;
+}
+
+.model-json {
+  margin-top: 0.75rem;
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #333;
+  background: #f0f4ff;
+  border: 1px solid #d0d9f0;
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}

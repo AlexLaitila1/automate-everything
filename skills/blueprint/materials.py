@@ -48,4 +48,15 @@ MATERIALS: dict[str, CladdingMaterial] = {
         unit_cost_eur=18.0,
         unit_label="m²",
     ),
+    "planks": CladdingMaterial(
+        # Wood planks (lauta), 158 mm exposed width.
+        # Unit is linear metres. Coverage = 0.158 m² per linear metre.
+        # No waste factor: contractors order for gross wall area; openings are
+        # cut out on site and off-cuts are reused elsewhere.
+        name="Wood Planks (158 mm)",
+        coverage_per_unit_m2=0.158,
+        waste_factor_pct=0.0,
+        unit_cost_eur=2.80,
+        unit_label="m",
+    ),
 }

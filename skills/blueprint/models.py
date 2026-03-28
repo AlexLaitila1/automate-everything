@@ -148,11 +148,14 @@ class Building3D:
 
 @dataclass(frozen=True)
 class SimulationResult:
-    """Final outputs derived from the 3D building model."""
+    """Final outputs derived from the building model."""
     perimeter_m: float
     wall_height_m: float
     gross_wall_area_m2: float
     opening_deductions_m2: float
     net_wall_area_m2: float
     cladding: CladdingEstimate
-    building_3d: Building3D
+    # One of these will be set depending on which pipeline produced the result.
+    # building_3d is from the legacy pipeline; house_model is from the new pipeline.
+    building_3d: Building3D | None = None
+    house_model: object | None = None  # HouseModel — typed as object to avoid circular import

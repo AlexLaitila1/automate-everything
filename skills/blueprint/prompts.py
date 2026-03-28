@@ -5,11 +5,12 @@ Return ONLY a valid JSON object — no markdown, no explanation:
 
 {
   "walls": [
-    {"label": "north", "length_m": 12.0},
-    {"label": "east",  "length_m": 8.0},
-    {"label": "south", "length_m": 12.0},
-    {"label": "west",  "length_m": 8.0}
+    {"label": "north", "start": [0.0, 0.0], "end": [12.0, 0.0], "length_m": 12.0},
+    {"label": "east",  "start": [12.0, 0.0], "end": [12.0, 8.0], "length_m": 8.0},
+    {"label": "south", "start": [12.0, 8.0], "end": [0.0, 8.0], "length_m": 12.0},
+    {"label": "west",  "start": [0.0, 8.0], "end": [0.0, 0.0], "length_m": 8.0}
   ],
+  "footprint_vertices": [[0.0, 0.0], [12.0, 0.0], [12.0, 8.0], [0.0, 8.0]],
   "width_m": 12.0,
   "depth_m": 8.0,
   "shape": "rectangular",
@@ -21,7 +22,12 @@ Return ONLY a valid JSON object — no markdown, no explanation:
 }
 
 Rules:
-- "walls": list all exterior walls. For an L-shaped or irregular building include every segment.
+- "footprint_vertices": the ordered (x, y) corner points of the building footprint in real-world METRES.
+  Place the first corner at (0, 0). All coordinates must use the scale from the drawing.
+  For L-shaped or irregular buildings include every corner vertex, not just bounding box corners.
+- "walls": each exterior wall segment. "start" and "end" must match consecutive footprint_vertices.
+  "length_m" MUST equal the Euclidean distance between start and end points (verify this).
+  The sum of all length_m values must equal the footprint polygon perimeter.
 - "width_m" and "depth_m": overall bounding box of the footprint.
 - "shape": "rectangular", "L-shaped", "T-shaped", or "irregular".
 - Convert all measurements to metres using the scale indicator on the drawing.
@@ -51,10 +57,10 @@ Return ONLY a valid JSON object — no markdown, no explanation:
 Rules:
 - "face_label": which face this elevation shows — "front", "back", "left", or "right". Infer from labels on the drawing (e.g. "Etujulkisivu" = front, "Takajulkisivu" = back, "Sivujulkisivu" = side).
 - "facade_width_m": total horizontal width of this face.
-- "wall_height_m": floor to eave (top of exterior wall, not counting roof).
+- "wall_height_m": TOTAL exterior wall height measured from finished ground level (±0.000) to the underside of the eave/soffit. This is the full cladding height — it includes the floor structure, all storeys, and any plinth above ground. It is ALWAYS larger than the interior ceiling height. Look for the dimension line on the outside of the building from the ground mark (±0) up to the eave level.
 - Convert all measurements to metres using the scale indicator on the drawing.
 - If no scale is visible, estimate and set scale_description to "estimated".
-- "openings": list every window and door visible on this facade.
+- "openings": list every window and door visible on this facade with their sizes.
 - Output must be valid JSON parseable by Python json.loads().
 """
 
@@ -65,6 +71,7 @@ Return ONLY a valid JSON object — no markdown, no explanation:
 
 {
   "storey_height_m": 2.7,
+  "eave_level_m": 4.0,
   "total_height_m": 6.5,
   "roof_pitch_deg": 30.0,
   "num_storeys": 1,
@@ -72,7 +79,11 @@ Return ONLY a valid JSON object — no markdown, no explanation:
 }
 
 Rules:
-- "storey_height_m": floor-to-ceiling height of one living storey (not counting roof space or basement).
+- "eave_level_m": TOTAL exterior wall height from finished ground level (±0.000) to the underside of
+  the eave/soffit. This is the cladding height — includes floor structure, all storeys, any plinth.
+  Look for the dimension from the ±0 ground mark to the eave level. It is ALWAYS greater than
+  the interior ceiling height (storey_height_m). This is the MOST IMPORTANT field to extract correctly.
+- "storey_height_m": interior floor-to-ceiling height of one living storey (for reference).
 - "total_height_m": ground level to highest point of the roof ridge.
 - "roof_pitch_deg": angle of the roof slope in degrees. 0 = flat roof.
 - "num_storeys": number of full above-ground living storeys (attic counts only if habitable).

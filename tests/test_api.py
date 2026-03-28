@@ -28,11 +28,11 @@ def test_health():
 
 # ── Materials ────────────────────────────────────────────────────────────────
 
-def test_materials_returns_all_five():
+def test_materials_returns_all():
     res = client.get("/api/materials")
     assert res.status_code == 200
     keys = {m["key"] for m in res.json()["materials"]}
-    assert keys == {"vinyl_siding", "brick", "fiber_cement", "wood", "stucco"}
+    assert keys == {"vinyl_siding", "brick", "fiber_cement", "wood", "stucco", "planks"}
 
 
 def test_materials_have_required_fields():

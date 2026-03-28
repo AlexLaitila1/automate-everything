@@ -1,192 +1,230 @@
-"""Tests for the 3D simulation pipeline."""
+"""Tests for the 3D simulation pipeline (HouseModel-based)."""
 from __future__ import annotations
 
 import json
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from skills.blueprint.assemble_3d import assemble_3d
-from skills.blueprint.calculate_from_3d import calculate_from_3d
-from skills.blueprint.models import (
-    FaceOpening,
-    FootprintWall,
-    JulkisivuData,
-    LeikkausData,
-    Opening,
-    PohjakuvaData,
-)
+from skills.blueprint.calculate_from_house_model import calculate_from_house_model
+from skills.blueprint.house_model import HouseModel, merge_partials
 from skills.blueprint.simulation_orchestrator import analyze_3d_blueprints
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# ── Partial dict fixtures ─────────────────────────────────────────────────────
 
-def _make_pohjakuva(
-    walls: tuple = (
-        FootprintWall("north", 12.0),
-        FootprintWall("east", 8.0),
-        FootprintWall("south", 12.0),
-        FootprintWall("west", 8.0),
-    ),
-    shape: str = "rectangular",
-) -> PohjakuvaData:
-    return PohjakuvaData(
-        walls=walls,
-        width_m=12.0,
-        depth_m=8.0,
-        shape=shape,
-        scale_description="1:100",
-        openings=(Opening("door", 0.9, 2.1),),
-    )
+def _po_partial(shape="rectangular") -> dict:
+    return {
+        "walls": [
+            {"label": "north", "length_m": 12.0},
+            {"label": "east",  "length_m": 8.0},
+            {"label": "south", "length_m": 12.0},
+            {"label": "west",  "length_m": 8.0},
+        ],
+        "width_m": 12.0,
+        "depth_m": 8.0,
+        "footprint_shape": shape,
+        "scale_description": "1:100",
+        "openings": [{"face": "plan", "label": "door", "width_m": 0.9, "height_m": 2.1}],
+    }
 
 
-def _make_julkisivu(wall_height_m: float = 2.8) -> JulkisivuData:
-    return JulkisivuData(
-        face_label="front",
-        facade_width_m=12.0,
-        wall_height_m=wall_height_m,
-        scale_description="1:100",
-        openings=(
-            FaceOpening("front", "window", 1.2, 1.2),
-            FaceOpening("front", "window", 1.2, 1.2),
-            FaceOpening("front", "door", 1.0, 2.1),
-        ),
-    )
+def _ju_partial(wall_height_m=2.8) -> dict:
+    return {
+        "face_label": "front",
+        "facade_width_m": 12.0,
+        "wall_height_m": wall_height_m,
+        "scale_description": "1:100",
+        "openings": [
+            {"face": "front", "label": "window", "width_m": 1.2, "height_m": 1.2},
+            {"face": "front", "label": "window", "width_m": 1.2, "height_m": 1.2},
+            {"face": "front", "label": "door",   "width_m": 1.0, "height_m": 2.1},
+        ],
+    }
 
 
-def _make_leikkaus(storey_height_m: float = 2.8, num_storeys: int = 1) -> LeikkausData:
-    return LeikkausData(
-        storey_height_m=storey_height_m,
-        total_height_m=6.5,
-        roof_pitch_deg=30.0,
-        num_storeys=num_storeys,
-        scale_description="1:100",
-    )
+def _le_partial(storey_height_m=2.8, num_storeys=1, eave_level_m=None) -> dict:
+    result = {
+        "storey_height_m": storey_height_m,
+        "total_height_m": 6.5,
+        "roof_pitch_deg": 30.0,
+        "num_storeys": num_storeys,
+        "scale_description": "1:100",
+    }
+    if eave_level_m is not None:
+        result["eave_level_m"] = eave_level_m
+    return result
 
 
-# ── assemble_3d ───────────────────────────────────────────────────────────────
+# ── merge_partials (assembly) ─────────────────────────────────────────────────
 
-def test_assemble_3d_basic():
-    building = assemble_3d(_make_pohjakuva(), _make_julkisivu(), _make_leikkaus(), "brick")
-    assert building.material_key == "brick"
-    assert len(building.pohjakuva.walls) == 4
-    assert building.julkisivu.wall_height_m == pytest.approx(2.8)
-
-
-def test_assemble_3d_reconciles_height_when_discrepant():
-    """When Julkisivu and Leikkaus heights differ by >20%, Leikkaus wins."""
-    # Julkisivu says 2.8m, Leikkaus says 3.5m (25% diff) → should use Leikkaus
-    julis = _make_julkisivu(wall_height_m=2.8)
-    leik = _make_leikkaus(storey_height_m=3.5, num_storeys=1)
-    building = assemble_3d(_make_pohjakuva(), julis, leik, "fiber_cement")
-    assert building.julkisivu.wall_height_m == pytest.approx(3.5)
+def test_merge_basic():
+    model = merge_partials(_po_partial(), _ju_partial(), _le_partial(), "brick")
+    assert model.material_key == "brick"
+    assert len(model.walls) == 4
+    assert model.wall_height_m == pytest.approx(2.8)
 
 
-def test_assemble_3d_consistent_heights_not_reconciled():
-    """Heights within 20% should keep Julkisivu value."""
-    julis = _make_julkisivu(wall_height_m=2.8)
-    leik = _make_leikkaus(storey_height_m=2.7, num_storeys=1)
-    building = assemble_3d(_make_pohjakuva(), julis, leik, "fiber_cement")
-    assert building.julkisivu.wall_height_m == pytest.approx(2.8)
+def test_merge_reconciles_height_when_discrepant():
+    """Julkisivu 2.8m vs Leikkaus 3.5m (25% diff) → Leikkaus wins."""
+    model = merge_partials(_po_partial(), _ju_partial(2.8), _le_partial(3.5))
+    assert model.wall_height_m == pytest.approx(3.5)
 
 
-def test_assemble_3d_raises_on_empty_walls():
-    po = PohjakuvaData(walls=(), width_m=12.0, depth_m=8.0,
-                       shape="rectangular", scale_description="1:100", openings=())
+def test_merge_keeps_julkisivu_when_consistent():
+    """Heights within 20% → Julkisivu kept."""
+    model = merge_partials(_po_partial(), _ju_partial(2.8), _le_partial(2.7))
+    assert model.wall_height_m == pytest.approx(2.8)
+
+
+def test_merge_eave_level_overrides_all():
+    """eave_level_m from Leikkaus takes precedence over storey-based reconciliation."""
+    model = merge_partials(_po_partial(), _ju_partial(2.8), _le_partial(2.8, eave_level_m=4.0))
+    assert model.wall_height_m == pytest.approx(4.0)
+    assert model.eave_level_m == pytest.approx(4.0)
+
+
+def test_merge_eave_level_stored_on_model():
+    model = merge_partials(_po_partial(), _ju_partial(), _le_partial(eave_level_m=3.9))
+    assert model.eave_level_m == pytest.approx(3.9)
+
+
+def test_merge_footprint_vertices_stored():
+    po = {
+        **_po_partial(),
+        "footprint_vertices": [[0, 0], [12, 0], [12, 8], [0, 8]],
+    }
+    model = merge_partials(po, _ju_partial(), _le_partial())
+    assert len(model.footprint_vertices) == 4
+    assert model.footprint_vertices[0] == pytest.approx((0.0, 0.0))
+    assert model.footprint_vertices[2] == pytest.approx((12.0, 8.0))
+
+
+def test_merge_footprint_vertices_empty_when_missing():
+    model = merge_partials(_po_partial(), _ju_partial(), _le_partial())
+    assert model.footprint_vertices == ()
+
+
+def test_merge_raises_on_empty_walls():
     with pytest.raises(ValueError, match="no exterior walls"):
-        assemble_3d(po, _make_julkisivu(), _make_leikkaus(), "fiber_cement")
+        merge_partials({**_po_partial(), "walls": []}, _ju_partial(), _le_partial())
 
 
-def test_assemble_3d_raises_on_zero_facade_width():
-    ju = JulkisivuData(face_label="front", facade_width_m=0.0,
-                       wall_height_m=2.8, scale_description="1:100", openings=())
+def test_merge_raises_on_zero_facade_width():
     with pytest.raises(ValueError, match="facade width"):
-        assemble_3d(_make_pohjakuva(), ju, _make_leikkaus(), "fiber_cement")
+        merge_partials(_po_partial(), {**_ju_partial(), "facade_width_m": 0.0}, _le_partial())
 
 
-# ── calculate_from_3d ─────────────────────────────────────────────────────────
+# ── calculate_from_house_model ────────────────────────────────────────────────
 
 def test_calculate_perimeter_rectangular():
-    building = assemble_3d(_make_pohjakuva(), _make_julkisivu(), _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
-    # 12+8+12+8 = 40m
+    model = merge_partials(_po_partial(), _ju_partial(), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
     assert result.perimeter_m == pytest.approx(40.0)
 
 
 def test_calculate_gross_area():
-    building = assemble_3d(_make_pohjakuva(), _make_julkisivu(2.8), _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
+    model = merge_partials(_po_partial(), _ju_partial(2.8), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
     assert result.gross_wall_area_m2 == pytest.approx(40.0 * 2.8)
 
 
 def test_calculate_opening_deductions_from_julkisivu():
-    """Deductions use Julkisivu openings (windows + door)."""
-    building = assemble_3d(_make_pohjakuva(), _make_julkisivu(), _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
-    # 2 windows 1.2×1.2 + 1 door 1.0×2.1
-    expected_deductions = 2 * 1.2 * 1.2 + 1.0 * 2.1
-    assert result.opening_deductions_m2 == pytest.approx(expected_deductions)
+    """Deductions use Julkisivu openings (2 windows + 1 door)."""
+    model = merge_partials(_po_partial(), _ju_partial(), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
+    expected = 2 * 1.2 * 1.2 + 1.0 * 2.1
+    assert result.opening_deductions_m2 == pytest.approx(expected)
 
 
 def test_calculate_net_area():
-    building = assemble_3d(_make_pohjakuva(), _make_julkisivu(2.8), _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
+    model = merge_partials(_po_partial(), _ju_partial(2.8), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
     gross = 40.0 * 2.8
     deductions = 2 * 1.2 * 1.2 + 1.0 * 2.1
     assert result.net_wall_area_m2 == pytest.approx(gross - deductions)
 
 
 def test_calculate_cladding_returns_estimate():
-    building = assemble_3d(_make_pohjakuva(), _make_julkisivu(), _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
+    model = merge_partials(_po_partial(), _ju_partial(), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
     assert result.cladding.material_name == "Fiber Cement Board"
     assert result.cladding.units_needed > 0
     assert result.cladding.total_cost > 0
 
 
 def test_fallback_to_pohjakuva_openings_when_julkisivu_has_none():
-    """If Julkisivu has no openings, Pohjakuva openings are used as fallback."""
-    ju_no_openings = JulkisivuData(
-        face_label="front", facade_width_m=12.0, wall_height_m=2.8,
-        scale_description="1:100", openings=(),
+    model = merge_partials(
+        _po_partial(),
+        {**_ju_partial(), "openings": []},
+        _le_partial(),
+        "fiber_cement",
     )
-    po = _make_pohjakuva()  # has one door 0.9×2.1
-    building = assemble_3d(po, ju_no_openings, _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
+    result = calculate_from_house_model(model)
     assert result.opening_deductions_m2 == pytest.approx(0.9 * 2.1)
 
 
 def test_l_shaped_building_perimeter():
-    walls = (
-        FootprintWall("north-1", 8.0),
-        FootprintWall("east-1", 4.0),
-        FootprintWall("south-stub", 4.0),
-        FootprintWall("east-2", 4.0),
-        FootprintWall("south-2", 4.0),
-        FootprintWall("west", 8.0),
-        FootprintWall("north-2", 4.0),
-    )
-    po = PohjakuvaData(walls=walls, width_m=8.0, depth_m=8.0,
-                       shape="L-shaped", scale_description="1:100", openings=())
-    building = assemble_3d(po, _make_julkisivu(), _make_leikkaus(), "fiber_cement")
-    result = calculate_from_3d(building)
+    po = {
+        "walls": [
+            {"label": "north-1", "length_m": 8.0},
+            {"label": "east-1",  "length_m": 4.0},
+            {"label": "south-stub", "length_m": 4.0},
+            {"label": "east-2",  "length_m": 4.0},
+            {"label": "south-2", "length_m": 4.0},
+            {"label": "west",    "length_m": 8.0},
+            {"label": "north-2", "length_m": 4.0},
+        ],
+        "width_m": 8.0, "depth_m": 8.0,
+        "footprint_shape": "L-shaped",
+        "scale_description": "1:100",
+        "openings": [],
+    }
+    model = merge_partials(po, _ju_partial(), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
     assert result.perimeter_m == pytest.approx(36.0)
 
 
-# ── simulation_orchestrator ───────────────────────────────────────────────────
+def test_calculate_perimeter_from_polygon_vertices():
+    """When footprint_vertices are present, perimeter is computed geometrically."""
+    po = {
+        **_po_partial(),
+        "footprint_vertices": [[0, 0], [12, 0], [12, 8], [0, 8]],
+    }
+    model = merge_partials(po, _ju_partial(), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
+    assert result.perimeter_m == pytest.approx(40.0)
 
-def _make_claude_client():
-    """Mock Claude client that returns fixed JSON for each blueprint type."""
+
+def test_calculate_perimeter_polygon_l_shaped():
+    """L-shaped footprint via polygon vertices gives correct perimeter."""
+    po = {
+        "walls": [{"label": "w1", "length_m": 36.0}],  # dummy walls
+        "footprint_vertices": [
+            [0, 0], [8, 0], [8, 4], [4, 4], [4, 8], [0, 8]
+        ],
+        "width_m": 8.0, "depth_m": 8.0,
+        "footprint_shape": "L-shaped",
+        "scale_description": "1:100",
+        "openings": [],
+    }
+    model = merge_partials(po, _ju_partial(), _le_partial(), "fiber_cement")
+    result = calculate_from_house_model(model)
+    assert result.perimeter_m == pytest.approx(32.0)
+
+
+# ── orchestrator ──────────────────────────────────────────────────────────────
+
+def _make_claude_client() -> MagicMock:
     pohjakuva_json = json.dumps({
         "walls": [
             {"label": "north", "length_m": 12.0},
-            {"label": "east", "length_m": 8.0},
+            {"label": "east",  "length_m": 8.0},
             {"label": "south", "length_m": 12.0},
-            {"label": "west", "length_m": 8.0},
+            {"label": "west",  "length_m": 8.0},
         ],
-        "width_m": 12.0,
-        "depth_m": 8.0,
+        "width_m": 12.0, "depth_m": 8.0,
         "shape": "rectangular",
         "scale_description": "1:100",
         "openings": [{"label": "door", "width_m": 0.9, "height_m": 2.1}],
@@ -214,13 +252,7 @@ def _make_claude_client():
     def _respond(model, max_tokens, system, messages, **kw):
         nonlocal call_count
         call_count += 1
-        # First call = Pohjakuva, second = Julkisivu, third = Leikkaus
-        if call_count == 1:
-            text = pohjakuva_json
-        elif call_count == 2:
-            text = julkisivu_json
-        else:
-            text = leikkaus_json
+        text = [pohjakuva_json, julkisivu_json, leikkaus_json][min(call_count - 1, 2)]
         block = MagicMock()
         block.text = text
         resp = MagicMock()
@@ -233,46 +265,49 @@ def _make_claude_client():
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_returns_report():
+async def test_orchestrator_returns_report_and_model():
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
          patch("skills.blueprint.simulation_orchestrator.anthropic.Anthropic",
                return_value=_make_claude_client()):
-        result = await analyze_3d_blueprints(
+        report, house_model = await analyze_3d_blueprints(
             pohjakuva_b64="aGVsbG8=", pohjakuva_media="image/png",
             julkisivu_b64="aGVsbG8=", julkisivu_media="image/png",
             leikkaus_b64="aGVsbG8=",  leikkaus_media="image/png",
             material_key="fiber_cement",
         )
-    assert "3D Blueprint Simulation Report" in result
-    assert "Perimeter:" in result
-    assert "Net wall area:" in result
-    assert "Cladding Estimate" in result
+    assert "3D Blueprint Simulation Report" in report
+    assert "Perimeter:" in report
+    assert "Surface area of the exterior wall:" in report
+    assert isinstance(house_model, dict)
+    assert "walls" in house_model
+    assert "wall_height_m" in house_model
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_perimeter_value():
+async def test_orchestrator_perimeter_in_report():
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
          patch("skills.blueprint.simulation_orchestrator.anthropic.Anthropic",
                return_value=_make_claude_client()):
-        result = await analyze_3d_blueprints(
+        report, _ = await analyze_3d_blueprints(
             pohjakuva_b64="aGVsbG8=", pohjakuva_media="image/png",
             julkisivu_b64="aGVsbG8=", julkisivu_media="image/png",
             leikkaus_b64="aGVsbG8=",  leikkaus_media="image/png",
         )
-    assert "40.0 m" in result  # 12+8+12+8 = 40m perimeter
+    assert "40.0 m" in report
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_extraction_error_returns_error_string():
+async def test_orchestrator_extraction_error_returns_error_tuple():
     bad_client = MagicMock()
     bad_client.messages.create.side_effect = Exception("API down")
 
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
          patch("skills.blueprint.simulation_orchestrator.anthropic.Anthropic",
                return_value=bad_client):
-        result = await analyze_3d_blueprints(
+        report, house_model = await analyze_3d_blueprints(
             pohjakuva_b64="aGVsbG8=", pohjakuva_media="image/png",
             julkisivu_b64="aGVsbG8=", julkisivu_media="image/png",
             leikkaus_b64="aGVsbG8=",  leikkaus_media="image/png",
         )
-    assert "analysis failed" in result.lower()
+    assert "analysis failed" in report.lower()
+    assert house_model == {}

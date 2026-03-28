@@ -1,32 +1,40 @@
-"""Extract cross-section data from a Leikkaus (section) PDF image."""
+"""Extract cross-section data from a Leikkaus (section) PDF image.
+
+Returns a partial HouseModel dict with keys:
+  storey_height_m, total_height_m, roof_pitch_deg, num_storeys, scale_description
+"""
 from __future__ import annotations
 
 import anthropic
 
 from .json_utils import extract_json
-from .models import LeikkausData
 from .prompts import EXTRACT_LEIKKAUS_SYSTEM_PROMPT
 
 _MODEL = "claude-sonnet-4-6"
 _MAX_RETRIES = 2
 
 
-def _parse_response(raw: str) -> LeikkausData:
+def _parse_response(raw: str) -> dict:
     data = extract_json(raw)
-    return LeikkausData(
-        storey_height_m=float(data["storey_height_m"]),
-        total_height_m=float(data["total_height_m"]),
-        roof_pitch_deg=float(data.get("roof_pitch_deg", 0.0)),
-        num_storeys=int(data.get("num_storeys", 1)),
-        scale_description=str(data.get("scale_description", "unknown")),
-    )
+    result: dict = {
+        "storey_height_m": float(data["storey_height_m"]),
+        "total_height_m": float(data["total_height_m"]),
+        "roof_pitch_deg": float(data.get("roof_pitch_deg", 0.0)),
+        "num_storeys": int(data.get("num_storeys", 1)),
+        "scale_description": str(data.get("scale_description", "unknown")),
+        "_source": "leikkaus",
+    }
+    # eave_level_m — exterior wall height floor-to-eave (more reliable than storey_height_m)
+    if "eave_level_m" in data:
+        result["eave_level_m"] = float(data["eave_level_m"])
+    return result
 
 
 async def extract_leikkaus(
     image_base64: str,
     media_type: str,
     client: anthropic.Anthropic,
-) -> LeikkausData:
+) -> dict:
     """Use Claude vision to extract cross-section data from a Leikkaus image."""
     last_error: Exception = ValueError("No attempts made.")
 

@@ -3,12 +3,15 @@
 const SLOTS = ["pohjakuva", "julkisivu", "leikkaus"];
 const selectedFiles = { pohjakuva: null, julkisivu: null, leikkaus: null };
 
-const analyzeBtn  = document.getElementById("analyze-btn");
-const materialSel = document.getElementById("material-select");
-const loadingEl   = document.getElementById("loading");
-const errorBox    = document.getElementById("error-box");
-const resultsEl   = document.getElementById("results");
-const reportText  = document.getElementById("report-text");
+const analyzeBtn   = document.getElementById("analyze-btn");
+const materialSel  = document.getElementById("material-select");
+const loadingEl    = document.getElementById("loading");
+const errorBox     = document.getElementById("error-box");
+const resultsEl    = document.getElementById("results");
+const reportText   = document.getElementById("report-text");
+const modelSection = document.getElementById("model-section");
+const modelJson    = document.getElementById("model-json");
+const toggleModel  = document.getElementById("toggle-model");
 
 // ── Material dropdown ────────────────────────────────────────────────────────
 
@@ -97,13 +100,21 @@ analyzeBtn.addEventListener("click", async () => {
     if (!res.ok || !data.success) {
       const msg = data.detail || data.error || "Analysis failed. Please try again.";
       showError(msg);
-      // Also show the error text in the report area so it's clearly visible
       reportText.textContent = msg;
       document.querySelector("#results h2").textContent = "Analysis Error";
+      modelSection.hidden = true;
       resultsEl.hidden = false;
     } else {
       document.querySelector("#results h2").textContent = "3D Simulation Report";
       reportText.textContent = data.report;
+      if (data.house_model) {
+        modelJson.textContent = JSON.stringify(data.house_model, null, 2);
+        modelJson.hidden = true;
+        toggleModel.textContent = "Show House Model (JSON)";
+        modelSection.hidden = false;
+      } else {
+        modelSection.hidden = true;
+      }
       resultsEl.hidden = false;
     }
   } catch {
@@ -128,6 +139,14 @@ function showError(msg) {
 function hideError() {
   errorBox.hidden = true;
 }
+
+// ── House Model toggle ────────────────────────────────────────────────────────
+
+toggleModel.addEventListener("click", () => {
+  const visible = !modelJson.hidden;
+  modelJson.hidden = visible;
+  toggleModel.textContent = visible ? "Show House Model (JSON)" : "Hide House Model (JSON)";
+});
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
